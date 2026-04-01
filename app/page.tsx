@@ -1,65 +1,181 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { CSVUpload } from "@/components/csv-upload";
+import { SetupForm } from "@/components/setup-form";
+import { Lead, UserContext, Campaign } from "@/lib/types";
+import { saveCampaign, setActiveCampaign, saveUserContext, getActiveCampaign } from "@/lib/storage";
+import { enrichBatch } from "@/lib/enrichment";
 
 export default function Home() {
+  const router = useRouter();
+  const [step, setStep] = useState<"check" | "setup" | "upload" | "enriching" | "ready">("check");
+  const [userContext, setUserContext] = useState<UserContext | null>(null);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [enrichProgress, setEnrichProgress] = useState({ done: 0, total: 0 });
+
+  useEffect(() => {
+    const existing = getActiveCampaign();
+    if (existing) {
+      router.push("/daily");
+    } else {
+      setStep("setup");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSetup = (ctx: UserContext) => {
+    setUserContext(ctx);
+    saveUserContext(ctx);
+    setStep("upload");
+  };
+
+  const handleLeadsParsed = async (parsedLeads: Lead[]) => {
+    setLeads(parsedLeads);
+
+    if (userContext?.apiKey) {
+      setStep("enriching");
+      setEnrichProgress({ done: 0, total: parsedLeads.length });
+
+      const hooks = await enrichBatch(parsedLeads, userContext, (done, total) => {
+        setEnrichProgress({ done, total });
+      });
+
+      const enrichedLeads = parsedLeads.map((lead) => {
+        const result = hooks.get(lead.id);
+        return {
+          ...lead,
+          personalizedHook: result?.hook || null,
+          researchContext: result?.research || null,
+          enrichmentStatus: result?.hook ? ("done" as const) : ("failed" as const),
+        };
+      });
+
+      setLeads(enrichedLeads);
+      createCampaign(enrichedLeads);
+    } else {
+      createCampaign(parsedLeads);
+    }
+  };
+
+  const createCampaign = (finalLeads: Lead[]) => {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const daysUntilMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 0 : 8 - dayOfWeek;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + daysUntilMonday);
+
+    const campaign: Campaign = {
+      id: `campaign_${Date.now()}`,
+      name: `Week of ${monday.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
+      createdAt: now.toISOString(),
+      weekStartDate: monday.toISOString().split("T")[0],
+      leads: finalLeads,
+      userContext: userContext!,
+    };
+
+    saveCampaign(campaign);
+    setActiveCampaign(campaign.id);
+    setStep("ready");
+  };
+
+  if (step === "check") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-pulse text-zinc-400">Loading...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-zinc-50">
+      <div className="max-w-xl mx-auto px-4 py-16">
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold text-zinc-900">Lead Magnet Wizard</h1>
+          <p className="text-zinc-500 mt-2">100 sales actions a day. No excuses.</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="flex items-center justify-center gap-2 mb-10">
+          {["Setup", "Upload", "Go"].map((label, i) => {
+            const stepIndex = step === "setup" ? 0 : step === "upload" ? 1 : 2;
+            return (
+              <div key={label} className="flex items-center gap-2">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    i <= stepIndex ? "bg-zinc-900 text-white" : "bg-zinc-200 text-zinc-500"
+                  }`}
+                >
+                  {i + 1}
+                </div>
+                <span className={`text-sm ${i <= stepIndex ? "text-zinc-900" : "text-zinc-400"}`}>
+                  {label}
+                </span>
+                {i < 2 && <div className="w-8 h-px bg-zinc-300" />}
+              </div>
+            );
+          })}
         </div>
-      </main>
+
+        {step === "setup" && (
+          <div className="bg-white rounded-xl border border-zinc-200 p-6">
+            <h2 className="text-lg font-semibold text-zinc-900 mb-1">Tell me about you</h2>
+            <p className="text-sm text-zinc-500 mb-5">This shapes your outreach templates.</p>
+            <SetupForm onSubmit={handleSetup} />
+          </div>
+        )}
+
+        {step === "upload" && (
+          <div className="bg-white rounded-xl border border-zinc-200 p-6">
+            <h2 className="text-lg font-semibold text-zinc-900 mb-1">Upload your leads</h2>
+            <p className="text-sm text-zinc-500 mb-5">
+              Export a CSV from Apollo or Sales Navigator. We&apos;ll split it into daily batches of 100.
+            </p>
+            <CSVUpload onLeadsParsed={handleLeadsParsed} />
+          </div>
+        )}
+
+        {step === "enriching" && (
+          <div className="bg-white rounded-xl border border-zinc-200 p-6 text-center">
+            <div className="text-4xl mb-3">🔮</div>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-1">Enriching your leads</h2>
+            <p className="text-sm text-zinc-500 mb-4">
+              Generating personalized hooks for each lead...
+            </p>
+            <div className="w-full bg-zinc-200 rounded-full h-3 overflow-hidden mb-2">
+              <div
+                className="h-full rounded-full transition-all duration-300 bg-gradient-to-r from-purple-500 to-blue-500"
+                style={{
+                  width: `${enrichProgress.total > 0 ? (enrichProgress.done / enrichProgress.total) * 100 : 0}%`,
+                }}
+              />
+            </div>
+            <p className="text-sm text-zinc-500">
+              {enrichProgress.done} / {enrichProgress.total} leads
+            </p>
+          </div>
+        )}
+
+        {step === "ready" && (
+          <div className="bg-white rounded-xl border border-zinc-200 p-6 text-center">
+            <div className="text-4xl mb-3">🎯</div>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-1">You&apos;re set!</h2>
+            <p className="text-sm text-zinc-500 mb-2">
+              {leads.length} leads split into daily batches of {Math.min(100, leads.length)}.
+            </p>
+            <p className="text-sm text-zinc-500 mb-6">
+              {leads.filter((l) => l.channel === "email").length} email &middot;{" "}
+              {leads.filter((l) => l.channel === "linkedin").length} LinkedIn
+            </p>
+            <button
+              onClick={() => router.push("/daily")}
+              className="w-full py-3 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
+            >
+              Start Today&apos;s Batch →
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
