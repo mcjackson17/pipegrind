@@ -84,7 +84,7 @@ export default function DailyPage() {
 
   if (!campaign) return null;
 
-  const unenrichedCount = campaign.leads.filter((l) => l.enrichmentStatus === "pending").length;
+  const unenrichedCount = campaign.leads.filter((l) => l.enrichmentStatus !== "done").length;
   const hasApiKey = !!getUserContext()?.apiKey;
   const progress = getDayProgress(campaign, selectedDay);
   const today = getTodayDayOfWeek();
