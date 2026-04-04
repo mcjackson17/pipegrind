@@ -43,7 +43,6 @@ async function callClaude(
     "anthropic-version": "2023-06-01",
   };
 
-  // Web search requires the beta header
   if (tools && tools.length > 0) {
     headers["anthropic-beta"] = "web-search-2025-03-05";
   }
@@ -76,25 +75,29 @@ async function researchLead(
 ): Promise<string> {
   const fullName = `${lead.firstName} ${lead.lastName}`;
 
-  const researchPrompt = `Find recent, real information about ${fullName}, ${lead.title} at ${lead.company}.
+  const researchPrompt = `You are doing pre-call research for a cold outreach message. Find SPECIFIC, RECENT, REAL information about ${fullName}, ${lead.title} at ${lead.company}.
 
-Search for:
-- Their LinkedIn posts or articles they've written
-- Recent company news about ${lead.company} (funding, product launches, hiring, partnerships)
-- Podcast appearances or conference talks by ${fullName}
-- Any content they've published or been quoted in
-${lead.industry ? `- Recent trends or news in the ${lead.industry} industry that relate to their role` : ""}
+Search for these in order of priority:
+1. LinkedIn posts or articles written by ${fullName} in the last 6 months — what topics do they post about? Any specific opinions or insights they've shared?
+2. Podcast appearances, conference talks, or interviews featuring ${fullName}
+3. Recent news about ${lead.company} — funding rounds, product launches, new hires, partnerships, press coverage
+4. Any content ${fullName} has published — blog posts, newsletters, videos, threads
+5. ${lead.company} website — what do they actually do, what's their positioning, any recent announcements
 
-Return ONLY verified facts you actually found with sources. Be specific — include dates, titles, and details.
-If you find nothing specific about this person or company, say exactly: "No specific information found."
-Do NOT make anything up or speculate.`;
+Return ONLY what you actually found. For each finding, include:
+- What you found (be specific — quote titles, topics, dates if available)
+- Where you found it (URL or source)
+
+If you genuinely find nothing specific about this person or company after searching, respond with exactly: "NOTHING_FOUND"
+
+Do NOT summarize their industry. Do NOT describe what someone in their role typically does. Only report verified facts about THIS specific person or company.`;
 
   const data = await callClaude(
     apiKey,
     "claude-sonnet-4-6",
     [{ role: "user", content: researchPrompt }],
-    [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
-    1024
+    [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+    1500
   );
 
   return extractTextFromResponse(data);
@@ -107,34 +110,33 @@ function buildHookPrompt(
   research: string
 ): string {
   const channelNote = channel === "email"
-    ? "This hook opens a cold email."
-    : "This hook is for a LinkedIn DM or connection request.";
+    ? "This hook is the opening line of a cold email — after 'Hey [Name],'."
+    : "This hook is the opening of a LinkedIn DM or connection request note.";
 
-  return `Write a 1-2 sentence cold outreach hook. Casual and direct — like texting a peer, not writing a corporate email.
+  return `You are writing a cold outreach hook for Dan McDermott, a content strategist in San Diego who helps ${userContext.targetRoleType} at ${userContext.targetCompanyType} ${userContext.valueProposition}. Dan is a founder himself — he writes peer-to-peer, not vendor-to-buyer.
 
 ${channelNote}
 
-LEAD:
-- Name: ${lead.firstName} ${lead.lastName}
-- Title: ${lead.title}
-- Company: ${lead.company}
-${lead.industry ? `- Industry: ${lead.industry}` : ""}
+LEAD: ${lead.firstName} ${lead.lastName}, ${lead.title} at ${lead.company}
 
-RESEARCH / CONTEXT:
+RESEARCH FOUND:
 ${research}
 
-SENDER: Dan McDermott — helps ${userContext.targetRoleType} at ${userContext.targetCompanyType} ${userContext.valueProposition}. Dan is a content strategist based in San Diego. He went to Tufts and UCL. He's a founder himself, so he writes peer-to-peer, not vendor-to-buyer.
+YOUR JOB:
+Write a 1-2 sentence hook that references something SPECIFIC from the research above. The hook should make ${lead.firstName} think "this person actually looked me up."
 
-RULES:
-- Reference ONLY things from the RESEARCH / CONTEXT section above
-- Do NOT invent, assume, or fabricate ANY details — no fake compliments, no made-up content references
-- If the research says "No specific information found" or is very thin, write a hook about a genuine, specific challenge that a ${lead.title} at a ${lead.industry || "similar"} company actually faces — be honest and direct, not fake-specific
-- Don't start with "I" — start with something about them or their situation
-- No corporate fluff, no buzzwords
+STRICT RULES:
+- You MUST reference something specific from the research — a real post, a real piece of news, a real thing they said or did
+- Do NOT start with "I" — open with something about them
+- Do NOT use phrases like "I noticed", "I came across", "I saw that" — be more direct
+- Do NOT write generic observations about their industry or role
+- Do NOT compliment them vaguely ("great work", "impressive journey")
 - Keep it to 1-2 sentences max
-- Sound like a founder talking to another founder, not an agency pitching a client
+- Casual and direct — like texting a peer
 
-Write ONLY the hook — no subject line, no greeting, no sign-off.`;
+If the research doesn't contain anything specific enough to reference honestly, respond with exactly: "NO_HOOK"
+
+Write ONLY the hook or "NO_HOOK" — nothing else.`;
 }
 
 export async function POST(request: NextRequest) {
@@ -147,32 +149,36 @@ export async function POST(request: NextRequest) {
   try {
     let research: string;
 
-    // Step 1: Get research context
     if (lead.notes && lead.notes.trim()) {
-      // User provided their own notes — use those directly
-      research = lead.notes.trim();
+      // User provided their own notes — use these directly, skip web search
+      research = `USER NOTES: ${lead.notes.trim()}`;
     } else {
-      // No user notes — do web search research
       research = await researchLead(apiKey, lead);
     }
 
-    // Step 2: Generate hook from real research
+    // If research came back empty, return no hook rather than faking it
+    if (research === "NOTHING_FOUND" || research.trim() === "") {
+      return NextResponse.json({ hook: "", research: "No specific information found." });
+    }
+
     const hookPrompt = buildHookPrompt(lead, userContext, channel, research);
 
     const hookData = await callClaude(
       apiKey,
-      "claude-haiku-4-5-20251001",
+      "claude-sonnet-4-6",
       [{ role: "user", content: hookPrompt }],
       undefined,
-      150
+      200
     );
 
     const hook = extractTextFromResponse(hookData);
 
-    return NextResponse.json({
-      hook,
-      research: lead.notes ? `User notes: ${lead.notes}` : research,
-    });
+    // If the model couldn't find anything specific enough, return no hook
+    if (hook === "NO_HOOK" || hook.trim() === "") {
+      return NextResponse.json({ hook: "", research });
+    }
+
+    return NextResponse.json({ hook, research });
   } catch (error) {
     return NextResponse.json(
       { error: `Failed to enrich: ${error instanceof Error ? error.message : "Unknown error"}` },
