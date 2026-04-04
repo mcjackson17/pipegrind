@@ -1,6 +1,6 @@
 import { Lead, UserContext } from "./types";
 
-interface EnrichResult {
+export interface EnrichResult {
   hook: string;
   research: string;
 }
@@ -42,24 +42,29 @@ export async function enrichLead(lead: Lead, ctx: UserContext): Promise<EnrichRe
 export async function enrichBatch(
   leads: Lead[],
   ctx: UserContext,
-  onProgress: (completed: number, total: number) => void
+  onProgress: (completed: number, total: number) => void,
+  onLeadEnriched?: (leadId: string, result: EnrichResult) => void
 ): Promise<Map<string, EnrichResult>> {
+  // Only enrich leads that haven't been done yet
+  const pending = leads.filter((l) => l.enrichmentStatus !== "done");
   const results = new Map<string, EnrichResult>();
-  const CONCURRENCY = 2; // Reduced from 3 — web search calls take longer
+  const CONCURRENCY = 2;
 
-  for (let i = 0; i < leads.length; i += CONCURRENCY) {
-    const batch = leads.slice(i, i + CONCURRENCY);
+  for (let i = 0; i < pending.length; i += CONCURRENCY) {
+    const batch = pending.slice(i, i + CONCURRENCY);
     const promises = batch.map(async (lead) => {
       try {
         const result = await enrichLead(lead, ctx);
         results.set(lead.id, result);
+        // Save to localStorage immediately — don't wait for the full batch
+        onLeadEnriched?.(lead.id, result);
       } catch {
         results.set(lead.id, { hook: "", research: "" });
       }
     });
 
     await Promise.all(promises);
-    onProgress(Math.min(i + CONCURRENCY, leads.length), leads.length);
+    onProgress(Math.min(i + CONCURRENCY, pending.length), pending.length);
   }
 
   return results;

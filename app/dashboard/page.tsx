@@ -24,7 +24,7 @@ export default function DashboardPage() {
   if (!campaign) return null;
 
   const days: DayOfWeek[] = [0, 1, 2, 3, 4];
-  const totalDone = days.reduce((sum, day) => sum + getDayProgress(campaign, day).done, 0);
+  const totalDone = days.reduce((sum: number, day) => sum + getDayProgress(campaign, day).done, 0);
   const totalLeads = campaign.leads.length;
   const emailCount = campaign.leads.filter((l) => l.channel === "email").length;
   const linkedInCount = campaign.leads.filter((l) => l.channel === "linkedin").length;

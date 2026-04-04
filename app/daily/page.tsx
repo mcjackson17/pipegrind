@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lead, DayOfWeek, DAY_LABELS } from "@/lib/types";
-import { getActiveCampaign, getLeadsForDay, getDayProgress, updateLead, getTodayDayOfWeek } from "@/lib/storage";
+import { getActiveCampaign, getLeadsForDay, getDayProgress, updateLead, getTodayDayOfWeek, getUserContext } from "@/lib/storage";
+import { enrichBatch } from "@/lib/enrichment";
 import { LeadCard } from "@/components/lead-card";
 import { ProgressBar } from "@/components/progress-bar";
 
@@ -14,6 +15,8 @@ export default function DailyPage() {
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(getTodayDayOfWeek() ?? 0);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [activeLeadIndex, setActiveLeadIndex] = useState(0);
+  const [resuming, setResuming] = useState(false);
+  const [resumeProgress, setResumeProgress] = useState({ done: 0, total: 0 });
 
   const refreshData = useCallback(() => {
     const c = getActiveCampaign();
@@ -51,8 +54,38 @@ export default function DailyPage() {
     }
   };
 
+  const handleResumeEnrichment = async () => {
+    if (!campaign) return;
+    const ctx = getUserContext();
+    if (!ctx?.apiKey) return;
+
+    const unenriched = campaign.leads.filter((l) => l.enrichmentStatus !== "done");
+    if (unenriched.length === 0) return;
+
+    setResuming(true);
+    setResumeProgress({ done: 0, total: unenriched.length });
+
+    await enrichBatch(
+      unenriched,
+      ctx,
+      (done, total) => setResumeProgress({ done, total }),
+      (leadId, result) => {
+        updateLead(campaign.id, leadId, {
+          personalizedHook: result.hook || null,
+          researchContext: result.research || null,
+          enrichmentStatus: result.hook ? "done" : "failed",
+        });
+      }
+    );
+
+    setResuming(false);
+    refreshData();
+  };
+
   if (!campaign) return null;
 
+  const unenrichedCount = campaign.leads.filter((l) => l.enrichmentStatus === "pending").length;
+  const hasApiKey = !!getUserContext()?.apiKey;
   const progress = getDayProgress(campaign, selectedDay);
   const today = getTodayDayOfWeek();
 
@@ -115,6 +148,45 @@ export default function DailyPage() {
           <ProgressBar progress={progress} label={`${DAY_LABELS[selectedDay]}'s Progress`} />
         </div>
       </div>
+
+      {/* Resume enrichment banner */}
+      {unenrichedCount > 0 && hasApiKey && !resuming && (
+        <div className="max-w-2xl mx-auto px-4 pt-4">
+          <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-amber-800">
+                {unenrichedCount} leads still need personalized hooks
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                Enrichment was interrupted — click to resume where it left off
+              </p>
+            </div>
+            <button
+              onClick={handleResumeEnrichment}
+              className="ml-4 shrink-0 text-sm px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium"
+            >
+              Resume
+            </button>
+          </div>
+        </div>
+      )}
+
+      {resuming && (
+        <div className="max-w-2xl mx-auto px-4 pt-4">
+          <div className="bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium text-purple-800">Enriching leads...</p>
+              <p className="text-sm text-purple-600">{resumeProgress.done} / {resumeProgress.total}</p>
+            </div>
+            <div className="w-full bg-purple-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-purple-500 transition-all duration-300"
+                style={{ width: `${resumeProgress.total > 0 ? (resumeProgress.done / resumeProgress.total) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lead list */}
       <div className="max-w-2xl mx-auto px-4 py-4">

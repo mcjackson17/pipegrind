@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CSVUpload } from "@/components/csv-upload";
 import { SetupForm } from "@/components/setup-form";
 import { Lead, UserContext, Campaign } from "@/lib/types";
-import { saveCampaign, setActiveCampaign, saveUserContext, getActiveCampaign } from "@/lib/storage";
+import { saveCampaign, setActiveCampaign, saveUserContext, getActiveCampaign, updateLead } from "@/lib/storage";
 import { enrichBatch } from "@/lib/enrichment";
 
 export default function Home() {
@@ -34,50 +34,50 @@ export default function Home() {
   const handleLeadsParsed = async (parsedLeads: Lead[]) => {
     setLeads(parsedLeads);
 
+    // Save campaign immediately — before enrichment starts
+    // This way if the user's computer restarts, the leads are already in localStorage
+    const campaign = buildCampaign(parsedLeads);
+    saveCampaign(campaign);
+    setActiveCampaign(campaign.id);
+
     if (userContext?.apiKey) {
       setStep("enriching");
-      setEnrichProgress({ done: 0, total: parsedLeads.length });
+      const pending = parsedLeads.filter((l) => l.enrichmentStatus !== "done");
+      setEnrichProgress({ done: 0, total: pending.length });
 
-      const hooks = await enrichBatch(parsedLeads, userContext, (done, total) => {
-        setEnrichProgress({ done, total });
-      });
-
-      const enrichedLeads = parsedLeads.map((lead) => {
-        const result = hooks.get(lead.id);
-        return {
-          ...lead,
-          personalizedHook: result?.hook || null,
-          researchContext: result?.research || null,
-          enrichmentStatus: result?.hook ? ("done" as const) : ("failed" as const),
-        };
-      });
-
-      setLeads(enrichedLeads);
-      createCampaign(enrichedLeads);
-    } else {
-      createCampaign(parsedLeads);
+      await enrichBatch(
+        parsedLeads,
+        userContext,
+        (done, total) => setEnrichProgress({ done, total }),
+        // Save each lead to localStorage the moment its hook arrives
+        (leadId, result) => {
+          updateLead(campaign.id, leadId, {
+            personalizedHook: result.hook || null,
+            researchContext: result.research || null,
+            enrichmentStatus: result.hook ? "done" : "failed",
+          });
+        }
+      );
     }
+
+    setStep("ready");
   };
 
-  const createCampaign = (finalLeads: Lead[]) => {
+  const buildCampaign = (initialLeads: Lead[]): Campaign => {
     const now = new Date();
     const dayOfWeek = now.getDay();
     const daysUntilMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 0 : 8 - dayOfWeek;
     const monday = new Date(now);
     monday.setDate(now.getDate() + daysUntilMonday);
 
-    const campaign: Campaign = {
+    return {
       id: `campaign_${Date.now()}`,
       name: `Week of ${monday.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
       createdAt: now.toISOString(),
       weekStartDate: monday.toISOString().split("T")[0],
-      leads: finalLeads,
+      leads: initialLeads,
       userContext: userContext!,
     };
-
-    saveCampaign(campaign);
-    setActiveCampaign(campaign.id);
-    setStep("ready");
   };
 
   if (step === "check") {
