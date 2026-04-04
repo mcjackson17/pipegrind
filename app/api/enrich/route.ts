@@ -116,7 +116,7 @@ ${lead.industry ? `- Industry: ${lead.industry}` : ""}
 RESEARCH / CONTEXT:
 ${research}
 
-SENDER helps ${userContext.targetRoleType} at ${userContext.targetCompanyType} ${userContext.valueProposition}.
+SENDER: Dan McDermott — helps ${userContext.targetRoleType} at ${userContext.targetCompanyType} ${userContext.valueProposition}. Dan is a content strategist based in San Diego. He went to Tufts and UCL. He's a founder himself, so he writes peer-to-peer, not vendor-to-buyer.
 
 RULES:
 - Reference ONLY things from the RESEARCH / CONTEXT section above
@@ -125,6 +125,7 @@ RULES:
 - Don't start with "I" — start with something about them or their situation
 - No corporate fluff, no buzzwords
 - Keep it to 1-2 sentences max
+- Sound like a founder talking to another founder, not an agency pitching a client
 
 Write ONLY the hook — no subject line, no greeting, no sign-off.`;
 }

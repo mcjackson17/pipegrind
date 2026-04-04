@@ -11,10 +11,10 @@ interface SetupFormProps {
 export function SetupForm({ onSubmit }: SetupFormProps) {
   const existing = getUserContext();
 
-  const [senderName, setSenderName] = useState(existing?.senderName || "");
-  const [valueProposition, setValueProposition] = useState(existing?.valueProposition || "");
-  const [targetRoleType, setTargetRoleType] = useState(existing?.targetRoleType || "");
-  const [targetCompanyType, setTargetCompanyType] = useState(existing?.targetCompanyType || "");
+  const [senderName, setSenderName] = useState(existing?.senderName || "Dan McDermott");
+  const [valueProposition, setValueProposition] = useState(existing?.valueProposition || "build lean content systems that turn founder expertise into leads");
+  const [targetRoleType, setTargetRoleType] = useState(existing?.targetRoleType || "founders and CEOs");
+  const [targetCompanyType, setTargetCompanyType] = useState(existing?.targetCompanyType || "small B2B SaaS teams");
   const [apiKey, setApiKey] = useState(existing?.apiKey || "");
 
   const handleSubmit = (e: React.FormEvent) => {
