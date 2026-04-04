@@ -37,13 +37,20 @@ async function callClaude(
     body.tools = tools;
   }
 
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "x-api-key": apiKey,
+    "anthropic-version": "2023-06-01",
+  };
+
+  // Web search requires the beta header
+  if (tools && tools.length > 0) {
+    headers["anthropic-beta"] = "web-search-2025-03-05";
+  }
+
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
+    headers,
     body: JSON.stringify(body),
   });
 

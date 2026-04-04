@@ -1,15 +1,25 @@
 import { Lead, UserContext } from "./types";
 
 export function generateEmailTemplate(lead: Lead, ctx: UserContext): { subject: string; body: string } {
-  const hook = lead.personalizedHook || `I came across ${lead.company} and wanted to reach out`;
+  const hook = lead.personalizedHook || null;
 
-  const subject = `Quick question about ${lead.company}`;
+  const subject = hook
+    ? `Quick question, ${lead.firstName}`
+    : `${lead.firstName} — quick question`;
 
-  const body = `Hey ${lead.firstName},
+  const body = hook
+    ? `Hey ${lead.firstName},
 
 ${hook}
 
-I help ${ctx.targetRoleType} at ${ctx.targetCompanyType} ${ctx.valueProposition}. Would it make sense to chat for 15 min this week?
+That's exactly what I work on — I help ${ctx.targetRoleType} at ${ctx.targetCompanyType} ${ctx.valueProposition}. Would it make sense to grab 15 min this week?
+
+${ctx.senderName}`
+    : `Hey ${lead.firstName},
+
+Working with a few ${ctx.targetRoleType} at ${ctx.targetCompanyType} right now and figured I'd reach out directly. I help them ${ctx.valueProposition} — without the overhead of a full content team.
+
+Worth a 15 min chat?
 
 ${ctx.senderName}`;
 
@@ -17,9 +27,13 @@ ${ctx.senderName}`;
 }
 
 export function generateLinkedInTemplate(lead: Lead, ctx: UserContext): string {
-  const hook = lead.personalizedHook || `I came across your profile and thought we might be solving similar problems`;
+  const hook = lead.personalizedHook;
 
-  return `Hey ${lead.firstName} — ${hook}. Would love to connect and swap notes on ${ctx.valueProposition.split(" ").slice(0, 5).join(" ")}. No pitch, just think we're in similar worlds.`;
+  if (hook) {
+    return `Hey ${lead.firstName} — ${hook}. That's exactly the kind of thing I work on. Would love to connect.`;
+  }
+
+  return `Hey ${lead.firstName} — working with a few ${ctx.targetRoleType} on ${ctx.valueProposition}. Thought it'd be worth connecting directly. No pitch.`;
 }
 
 export function generateFullMessage(lead: Lead, ctx: UserContext): string {
