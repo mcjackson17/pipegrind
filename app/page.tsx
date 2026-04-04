@@ -92,7 +92,7 @@ export default function Home() {
     <div className="min-h-screen bg-zinc-50">
       <div className="max-w-xl mx-auto px-4 py-16">
         <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-zinc-900">Lead Magnet Wizard</h1>
+          <h1 className="text-3xl font-bold text-zinc-900">PipeGrind</h1>
           <p className="text-zinc-500 mt-2">100 sales actions a day. No excuses.</p>
         </div>
 

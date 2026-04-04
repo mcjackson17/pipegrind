@@ -96,7 +96,7 @@ export default function DailyPage() {
         <div className="max-w-2xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-lg font-bold text-zinc-900">Lead Magnet Wizard</h1>
+              <h1 className="text-lg font-bold text-zinc-900">PipeGrind</h1>
               <p className="text-xs text-zinc-500">{campaign.name}</p>
             </div>
             <div className="flex gap-2">

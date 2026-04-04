@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lead Magnet Wizard",
+  title: "PipeGrind",
   description: "100 sales actions a day. No excuses.",
 };
 
