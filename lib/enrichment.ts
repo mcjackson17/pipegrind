@@ -58,8 +58,12 @@ export async function enrichBatch(
         results.set(lead.id, result);
         // Save to localStorage immediately — don't wait for the full batch
         onLeadEnriched?.(lead.id, result);
-      } catch {
-        results.set(lead.id, { hook: "", research: "" });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`Enrichment failed for ${lead.firstName} ${lead.lastName}:`, msg);
+        results.set(lead.id, { hook: "", research: `Error: ${msg}` });
+        // Still call the callback so the lead gets marked as failed in localStorage
+        onLeadEnriched?.(lead.id, { hook: "", research: `Error: ${msg}` });
       }
     });
 
