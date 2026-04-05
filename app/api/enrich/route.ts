@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const maxDuration = 60; // seconds — web search needs time
+
 interface EnrichRequest {
   lead: {
     firstName: string;
