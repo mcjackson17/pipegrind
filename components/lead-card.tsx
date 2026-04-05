@@ -116,6 +116,16 @@ export function LeadCard({ lead, userContext, onMarkDone, onSkip, isActive }: Le
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
               <p className="text-xs font-medium text-amber-700 mb-1">Personalized Hook</p>
               <p className="text-sm text-amber-900">{lead.personalizedHook}</p>
+              {lead.sourceUrl && (
+                <a
+                  href={lead.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-2 text-xs text-amber-600 hover:text-amber-800 underline break-all"
+                >
+                  Source →
+                </a>
+              )}
             </div>
           )}
 

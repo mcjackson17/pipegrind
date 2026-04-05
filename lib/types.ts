@@ -13,6 +13,7 @@ export interface Lead {
   notes: string | null;
   // AI enrichment
   researchContext: string | null;
+  sourceUrl: string | null; // URL of the specific thing referenced in the hook
   personalizedHook: string | null;
   enrichmentStatus: "pending" | "enriching" | "done" | "failed";
   // Outreach

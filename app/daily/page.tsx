@@ -73,6 +73,7 @@ export default function DailyPage() {
         updateLead(campaign.id, leadId, {
           personalizedHook: result.hook || null,
           researchContext: result.research || null,
+          sourceUrl: result.sourceUrl || null,
           enrichmentStatus: result.hook ? "done" : "failed",
         });
       }

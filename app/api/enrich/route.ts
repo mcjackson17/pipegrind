@@ -82,13 +82,12 @@ async function researchLead(
 Search for these in order of priority:
 1. LinkedIn posts or articles written by ${fullName} in the last 6 months — what topics do they post about? Any specific opinions or insights they've shared?
 2. Podcast appearances, conference talks, or interviews featuring ${fullName}
-3. Recent news about ${lead.company} — funding rounds, product launches, new hires, partnerships, press coverage
-4. Any content ${fullName} has published — blog posts, newsletters, videos, threads
-5. ${lead.company} website — what do they actually do, what's their positioning, any recent announcements
+3. Any content ${fullName} has published — blog posts, newsletters, videos, threads
+4. Recent non-funding news about ${lead.company} — product launches, new hires, partnerships, press coverage
 
 Return ONLY what you actually found. For each finding, include:
 - What you found (be specific — quote titles, topics, dates if available)
-- Where you found it (URL or source)
+- The direct URL where you found it
 
 If you genuinely find nothing specific about this person or company after searching, respond with exactly: "NOTHING_FOUND"
 
@@ -98,8 +97,8 @@ Do NOT summarize their industry. Do NOT describe what someone in their role typi
     apiKey,
     "claude-sonnet-4-6",
     [{ role: "user", content: researchPrompt }],
-    [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
-    1500
+    [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+    1000
   );
 
   return extractTextFromResponse(data);
@@ -133,6 +132,7 @@ STRICT RULES:
 - Do NOT use phrases like "I noticed", "I came across", "I saw that" — be more direct
 - Do NOT write generic observations about their industry or role
 - Do NOT compliment them vaguely ("great work", "impressive journey")
+- Do NOT mention fundraising, investment rounds, or funding — this is not an appropriate hook opener
 - Keep it to 1-2 sentences max
 - Casual and direct — like texting a peer
 
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     const hookData = await callClaude(
       apiKey,
-      "claude-sonnet-4-6",
+      "claude-haiku-4-5-20251001",
       [{ role: "user", content: hookPrompt }],
       undefined,
       200
@@ -180,7 +180,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ hook: "", research });
     }
 
-    return NextResponse.json({ hook, research });
+    // Extract the first URL from research to use as source link
+    const urlMatch = research.match(/https?:\/\/[^\s\)\"\']+/);
+    const sourceUrl = urlMatch ? urlMatch[0] : null;
+
+    return NextResponse.json({ hook, research, sourceUrl });
   } catch (error) {
     return NextResponse.json(
       { error: `Failed to enrich: ${error instanceof Error ? error.message : "Unknown error"}` },
