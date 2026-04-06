@@ -104,9 +104,11 @@ export function parseCSV(csvText: string): { leads: Lead[]; unmappedColumns: str
       researchContext: null,
       sourceUrl: null,
       personalizedHook: null,
+      personalizedSubject: null,
       enrichmentStatus: "pending",
       channel: hasEmail ? "email" : "linkedin",
       status: "pending",
+      replied: false,
       batchDay: 0,
       batchIndex: 0,
     };

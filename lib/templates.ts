@@ -3,7 +3,9 @@ import { Lead, UserContext } from "./types";
 export function generateEmailTemplate(lead: Lead, ctx: UserContext): { subject: string; body: string } {
   const hook = lead.personalizedHook || null;
 
-  const subject = hook
+  const subject = lead.personalizedSubject
+    ? lead.personalizedSubject
+    : hook
     ? `Quick question, ${lead.firstName}`
     : `${lead.firstName} — quick question`;
 

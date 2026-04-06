@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lead, DayOfWeek, DAY_LABELS } from "@/lib/types";
 import { getActiveCampaign, getLeadsForDay, getDayProgress, updateLead, getTodayDayOfWeek, getUserContext } from "@/lib/storage";
-import { enrichBatch } from "@/lib/enrichment";
+import { enrichBatch, enrichLead } from "@/lib/enrichment";
 import { LeadCard } from "@/components/lead-card";
 import { ProgressBar } from "@/components/progress-bar";
 
@@ -38,6 +38,54 @@ export default function DailyPage() {
     refreshData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDay]);
+
+  const handleToggleReply = (leadId: string) => {
+    if (!campaign) return;
+    const lead = campaign.leads.find((l) => l.id === leadId);
+    if (!lead) return;
+    const updated = updateLead(campaign.id, leadId, { replied: !lead.replied });
+    if (updated) {
+      setCampaign(updated);
+      setLeads(getLeadsForDay(updated, selectedDay));
+    }
+  };
+
+  const handleReenrich = async (leadId: string, noteOverride?: string) => {
+    if (!campaign) return;
+    const ctx = getUserContext();
+    if (!ctx?.apiKey) return;
+
+    const lead = campaign.leads.find((l) => l.id === leadId);
+    if (!lead) return;
+
+    // Save the note override to the lead first
+    if (noteOverride) {
+      updateLead(campaign.id, leadId, { notes: noteOverride, enrichmentStatus: "enriching" });
+    } else {
+      updateLead(campaign.id, leadId, { enrichmentStatus: "enriching" });
+    }
+
+    const leadWithNote = noteOverride ? { ...lead, notes: noteOverride } : lead;
+
+    try {
+      const result = await enrichLead(leadWithNote, ctx);
+      const updated = updateLead(campaign.id, leadId, {
+        notes: noteOverride ?? lead.notes,
+        personalizedHook: result.hook || null,
+        personalizedSubject: result.subject || null,
+        researchContext: result.research || null,
+        sourceUrl: result.sourceUrl || null,
+        enrichmentStatus: result.hook ? "done" : "failed",
+      });
+      if (updated) {
+        setCampaign(updated);
+        setLeads(getLeadsForDay(updated, selectedDay));
+      }
+    } catch {
+      updateLead(campaign.id, leadId, { enrichmentStatus: "failed" });
+      refreshData();
+    }
+  };
 
   const handleAction = (leadId: string, action: "done" | "skipped") => {
     if (!campaign) return;
@@ -72,6 +120,7 @@ export default function DailyPage() {
       (leadId, result) => {
         updateLead(campaign.id, leadId, {
           personalizedHook: result.hook || null,
+          personalizedSubject: result.subject || null,
           researchContext: result.research || null,
           sourceUrl: result.sourceUrl || null,
           enrichmentStatus: result.hook ? "done" : "failed",
@@ -206,6 +255,8 @@ export default function DailyPage() {
                 isActive={index === activeLeadIndex && lead.status === "pending"}
                 onMarkDone={() => handleAction(lead.id, "done")}
                 onSkip={() => handleAction(lead.id, "skipped")}
+                onToggleReply={() => handleToggleReply(lead.id)}
+                onReenrich={(noteOverride) => handleReenrich(lead.id, noteOverride)}
               />
             ))
           )}

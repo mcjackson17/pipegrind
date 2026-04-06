@@ -136,9 +136,13 @@ STRICT RULES:
 - Keep it to 1-2 sentences max
 - Casual and direct — like texting a peer
 
-If the research doesn't contain anything specific enough to reference honestly, respond with exactly: "NO_HOOK"
+If the research doesn't contain anything specific enough to reference honestly, respond with exactly:
+SUBJECT: NO_HOOK
+HOOK: NO_HOOK
 
-Write ONLY the hook or "NO_HOOK" — nothing else.`;
+Otherwise respond in exactly this format:
+SUBJECT: [max 7 words, no quotes, references the same thing as the hook — not "Quick question about [company]"]
+HOOK: [1-2 sentence hook]`;
 }
 
 export async function POST(request: NextRequest) {
@@ -173,18 +177,24 @@ export async function POST(request: NextRequest) {
       200
     );
 
-    const hook = extractTextFromResponse(hookData);
+    const raw = extractTextFromResponse(hookData);
+
+    // Parse SUBJECT and HOOK from structured response
+    const subjectMatch = raw.match(/SUBJECT:\s*(.+)/);
+    const hookMatch = raw.match(/HOOK:\s*([\s\S]+)/);
+    const subject = subjectMatch ? subjectMatch[1].trim() : "";
+    const hook = hookMatch ? hookMatch[1].trim() : raw.trim();
 
     // If the model couldn't find anything specific enough, return no hook
-    if (hook === "NO_HOOK" || hook.trim() === "") {
-      return NextResponse.json({ hook: "", research });
+    if (hook === "NO_HOOK" || subject === "NO_HOOK" || hook.trim() === "") {
+      return NextResponse.json({ hook: "", subject: "", research });
     }
 
     // Extract the first URL from research to use as source link
     const urlMatch = research.match(/https?:\/\/[^\s\)\"\']+/);
     const sourceUrl = urlMatch ? urlMatch[0] : null;
 
-    return NextResponse.json({ hook, research, sourceUrl });
+    return NextResponse.json({ hook, subject, research, sourceUrl });
   } catch (error) {
     return NextResponse.json(
       { error: `Failed to enrich: ${error instanceof Error ? error.message : "Unknown error"}` },

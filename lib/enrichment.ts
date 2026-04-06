@@ -2,6 +2,7 @@ import { Lead, UserContext } from "./types";
 
 export interface EnrichResult {
   hook: string;
+  subject: string;
   research: string;
   sourceUrl: string | null;
 }
@@ -37,7 +38,7 @@ export async function enrichLead(lead: Lead, ctx: UserContext): Promise<EnrichRe
   }
 
   const data = await response.json();
-  return { hook: data.hook, research: data.research, sourceUrl: data.sourceUrl ?? null };
+  return { hook: data.hook, subject: data.subject ?? "", research: data.research, sourceUrl: data.sourceUrl ?? null };
 }
 
 export async function enrichBatch(
@@ -62,9 +63,8 @@ export async function enrichBatch(
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`Enrichment failed for ${lead.firstName} ${lead.lastName}:`, msg);
-        results.set(lead.id, { hook: "", research: `Error: ${msg}`, sourceUrl: null });
-        // Still call the callback so the lead gets marked as failed in localStorage
-        onLeadEnriched?.(lead.id, { hook: "", research: `Error: ${msg}`, sourceUrl: null });
+        results.set(lead.id, { hook: "", subject: "", research: `Error: ${msg}`, sourceUrl: null });
+        onLeadEnriched?.(lead.id, { hook: "", subject: "", research: `Error: ${msg}`, sourceUrl: null });
       }
     });
 

@@ -53,6 +53,7 @@ export default function Home() {
         (leadId, result) => {
           updateLead(campaign.id, leadId, {
             personalizedHook: result.hook || null,
+            personalizedSubject: result.subject || null,
             researchContext: result.research || null,
             sourceUrl: result.sourceUrl || null,
             enrichmentStatus: result.hook ? "done" : "failed",

@@ -15,10 +15,12 @@ export interface Lead {
   researchContext: string | null;
   sourceUrl: string | null; // URL of the specific thing referenced in the hook
   personalizedHook: string | null;
+  personalizedSubject: string | null; // Subject line tied to the hook
   enrichmentStatus: "pending" | "enriching" | "done" | "failed";
   // Outreach
   channel: "email" | "linkedin";
   status: "pending" | "done" | "skipped";
+  replied: boolean;
   // Batching
   batchDay: number; // 0-4 (Mon-Fri)
   batchIndex: number; // position within the day's batch

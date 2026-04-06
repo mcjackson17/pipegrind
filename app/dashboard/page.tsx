@@ -28,6 +28,8 @@ export default function DashboardPage() {
   const totalLeads = campaign.leads.length;
   const emailCount = campaign.leads.filter((l) => l.channel === "email").length;
   const linkedInCount = campaign.leads.filter((l) => l.channel === "linkedin").length;
+  const repliedCount = campaign.leads.filter((l) => l.replied).length;
+  const replyRate = totalDone > 0 ? Math.round((repliedCount / totalDone) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -46,12 +48,19 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="bg-white rounded-xl border border-zinc-200 p-4">
             <p className="text-sm text-zinc-500">Total Done</p>
             <p className="text-2xl font-bold text-zinc-900">{totalDone}</p>
-            <p className="text-xs text-zinc-400">of {totalLeads}</p>
+            <p className="text-xs text-zinc-400">of {totalLeads} leads</p>
           </div>
+          <div className="bg-white rounded-xl border border-zinc-200 p-4">
+            <p className="text-sm text-zinc-500">Reply Rate</p>
+            <p className="text-2xl font-bold text-green-600">{replyRate}%</p>
+            <p className="text-xs text-zinc-400">{repliedCount} of {totalDone} replied</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-xl border border-zinc-200 p-4">
             <p className="text-sm text-zinc-500">Emails</p>
             <p className="text-2xl font-bold text-blue-600">{emailCount}</p>
