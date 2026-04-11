@@ -151,6 +151,12 @@ export default function DailyPage() {
             </div>
             <div className="flex gap-2">
               <Link
+                href="/finance"
+                className="text-sm px-3 py-1.5 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors"
+              >
+                Finances
+              </Link>
+              <Link
                 href="/dashboard"
                 className="text-sm px-3 py-1.5 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors"
               >
